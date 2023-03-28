@@ -1,6 +1,40 @@
 Byte Buddy release notes
 ------------------------
 
+### 13. March 2023: version 1.14.2
+
+- Fix offset mapping for local variable array remapping in `Advice`.
+- Add possibility to specify an index for `skipOn` and `repeatOn` which resolves the checked value from a returned array.
+
+### 7. March 2023: version 1.14.1
+
+- Add *extended* scope for Maven Byte Buddy plugin to include all non-test-dependencies.
+
+### 18. February 2023: version 1.14.0
+
+- Add `Step.Factory.ForDelegation` in `MemberSubstitution` that allows for delegation similar to `MethodDelegation` but in-code.
+- Add handlers for `MethodDelegation` and `Advice` that leverage method handles for field access and self-invocation.
+- Add `Step.Factory` for type assignment that allows casting the return value from a previous step to another type.
+- Avoid usage of `URL` class loader as it is deprecated, and use newer method if available.
+
+### 13. February 2023: version 1.13.0
+
+- Complete `MemberSubstitution` API which now retains the original instruction for invocation.
+- Allow excluding methods from a `MethodGraph.Compiler` using an `ElementMatcher`.
+- Add a filtering `ClassFileLocator`.
+- Add a matcher for a type's `ClassFileVersion`.
+- Unify resolution of constant values by introducing a `ConstantValue` API.
+- Do not exclude `ToThrown` assignment on `void` methods.
+- Allow constructors as target in `MemberSubstitution`. 
+
+### 5. February 2023: version 1.12.23
+
+- Allow using `ClassFileLocator` to `AgentBuilder` to append boot-injected types.
+- Add `RenamingPlugin` that allows for migration of names using the build plugin.
+- Add wrapper method to `ForAdvice` transformation to allow for easier wrapping.
+- Fix Gradle plugin *raw* folder and improve detection of unused configurations.
+- Add additional default `Step`s to `MemberSubstitution` to reduce need for custom bytecode generation.
+
 ### 12. January 2023: version 1.12.22
 
 - Support `MethodHandle` and `MethodType` in `Advice.Origin` annotation.

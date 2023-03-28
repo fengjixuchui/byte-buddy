@@ -7,6 +7,7 @@ import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.dynamic.loading.InjectionClassLoader;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
@@ -32,9 +33,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Callable;
 
 import static junit.framework.TestCase.fail;
@@ -979,6 +978,60 @@ public class AdviceTest {
     }
 
     @Test
+    @JavaVersionRule.Enforce(value = 7, target = Bean.class)
+    public void testFieldAdviceHandleBean() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(Bean.class)
+                .visit(Advice.to(FieldAdviceHandleBean.class).on(ElementMatchers.isSetter()))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        type.getDeclaredMethod("setFoo", String.class).invoke(type.getDeclaredConstructor().newInstance(), BAR);
+        assertThat(type.getDeclaredField(ENTER).get(null), is((Object) 1));
+    }
+
+    @Test
+    @JavaVersionRule.Enforce(value = 7, target = Bean.class)
+    public void testFieldAdviceHandleSetterBean() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(Bean.class)
+                .visit(Advice.to(FieldAdviceHandleSetterBean.class).on(ElementMatchers.isGetter()))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        assertThat(type.getDeclaredMethod("getFoo").invoke(type.getDeclaredConstructor().newInstance()), is((Object) QUX));
+        assertThat(type.getDeclaredField(ENTER).get(null), is((Object) 1));
+    }
+
+    @Test
+    @JavaVersionRule.Enforce(value = 7, target = FieldSample.class)
+    public void testFieldAdviceHandleImplicit() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(FieldSample.class)
+                .visit(Advice.to(FieldAdviceHandleImplicit.class).on(named(FOO)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        assertThat(type.getDeclaredMethod(FOO).invoke(type.getDeclaredConstructor().newInstance()), is((Object) FOO));
+        assertThat(type.getDeclaredField(ENTER).get(null), is((Object) 1));
+        assertThat(type.getDeclaredField(EXIT).get(null), is((Object) 1));
+    }
+
+    @Test
+    @JavaVersionRule.Enforce(value = 7, target = FieldSample.class)
+    public void testFieldAdviceHandleExplicit() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(FieldSample.class)
+                .visit(Advice.to(FieldAdviceHandleExplicit.class).on(named(FOO)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        assertThat(type.getDeclaredMethod(FOO).invoke(type.getDeclaredConstructor().newInstance()), is((Object) FOO));
+        assertThat(type.getDeclaredField(ENTER).get(null), is((Object) 1));
+        assertThat(type.getDeclaredField(EXIT).get(null), is((Object) 1));
+    }
+
+    @Test
     public void testAllArgumentsStackSizeAdvice() throws Exception {
         Class<?> type = new ByteBuddy()
                 .redefine(Sample.class)
@@ -1027,6 +1080,17 @@ public class AdviceTest {
         Class<?> type = new ByteBuddy()
                 .redefine(Sample.class)
                 .visit(Advice.to(NoArgumentsWrite.class).on(named(FOO)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        assertThat(type.getDeclaredMethod(FOO).invoke(type.getDeclaredConstructor().newInstance()), is((Object) FOO));
+    }
+
+    @Test
+    public void testAllArgumentsIncludeSelf() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(Sample.class)
+                .visit(Advice.to(AllArgumentsIncludeSelf.class).on(named(FOO)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -1493,6 +1557,63 @@ public class AdviceTest {
     }
 
     @Test
+    @JavaVersionRule.Enforce(value = 7, target = SelfCallHandleSample.class)
+    public void testSelfCallHandle() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(SelfCallHandleSample.class)
+                .visit(Advice.to(SelfCallHandleSample.class).on(named(FOO)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        Object instance = type.getDeclaredConstructor().newInstance();
+        assertThat(type.getMethod(FOO, String.class).invoke(instance, FOO), is((Object) FOO));
+        assertThat(type.getField(FOO).get(null), is((Object) (FOO + BAR)));
+    }
+
+    @Test
+    @JavaVersionRule.Enforce(value = 7, target = SelfCallHandleSample.class)
+    public void testSelfCallHandleSubclass() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(SelfCallHandleSample.class)
+                .visit(Advice.to(SelfCallHandleSubclass.class).on(named(FOO)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER.opened())
+                .getLoaded();
+        Object instance = ((InjectionClassLoader) type.getClassLoader()).defineClass(SelfCallHandleSubclass.class.getName(), ClassFileLocator.ForClassLoader.read(SelfCallHandleSubclass.class))
+                .getDeclaredConstructor()
+                .newInstance();
+        assertThat(type.getMethod(FOO, String.class).invoke(instance, FOO), is((Object) FOO));
+        assertThat(type.getField(FOO).get(null), is((Object) (FOO + BAR)));
+    }
+
+    @Test
+    @JavaVersionRule.Enforce(value = 7, target = SelfCallHandleStaticSample.class)
+    public void testSelfCallHandleStatic() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(SelfCallHandleStaticSample.class)
+                .visit(Advice.to(SelfCallHandleStaticSample.class).on(named(FOO)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        assertThat(type.getMethod(FOO, String.class).invoke(null, FOO), is((Object) FOO));
+        assertThat(type.getField(FOO).get(null), is((Object) (FOO + BAR)));
+    }
+
+    @Test
+    @JavaVersionRule.Enforce(value = 7, target = SelfCallHandlePrimitiveSample.class)
+    public void testSelfCallHandlePrimitive() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(SelfCallHandlePrimitiveSample.class)
+                .visit(Advice.to(SelfCallHandlePrimitiveSample.class).on(named(FOO)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        Object instance = type.getDeclaredConstructor().newInstance();
+        assertThat(type.getMethod(FOO, int.class).invoke(instance, 42), is((Object) 42));
+        assertThat(type.getField(FOO).getInt(null), is((Object) (42 * 3)));
+    }
+
+    @Test
     public void testConstructorNoArgumentBackupAndNoFrames() throws Exception {
         Class<?> type = new ByteBuddy()
                 .redefine(NoBackupArguments.class)
@@ -1519,10 +1640,8 @@ public class AdviceTest {
         Class<?> type = new ByteBuddy()
                 .redefine(PostProcessorInlineTest.class)
                 .visit(Advice.withCustomMapping().with(new Advice.PostProcessor.Factory() {
-                    @Override
                     public Advice.PostProcessor make(final MethodDescription.InDefinedShape advice, boolean exit) {
                         return new Advice.PostProcessor() {
-                            @Override
                             public StackManipulation resolve(TypeDescription instrumentedType,
                                                              MethodDescription instrumentedMethod,
                                                              Assigner assigner,
@@ -1548,10 +1667,8 @@ public class AdviceTest {
         Class<?> type = new ByteBuddy()
                 .redefine(PostProcessorDelegateTest.class)
                 .visit(Advice.withCustomMapping().with(new Advice.PostProcessor.Factory() {
-                    @Override
                     public Advice.PostProcessor make(final MethodDescription.InDefinedShape advice, boolean exit) {
                         return new Advice.PostProcessor() {
-                            @Override
                             public StackManipulation resolve(TypeDescription instrumentedType,
                                                              MethodDescription instrumentedMethod,
                                                              Assigner assigner,
@@ -1590,7 +1707,6 @@ public class AdviceTest {
                 .defineField(FOO, boolean.class, Ownership.STATIC)
                 .defineMethod(BAR, boolean.class, Visibility.PUBLIC)
                 .intercept(new Implementation.Simple(new ByteCodeAppender() {
-                    @Override
                     public Size apply(MethodVisitor methodVisitor, Implementation.Context implementationContext, MethodDescription instrumentedMethod) {
                         methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, implementationContext.getInstrumentedType().getInternalName(), FOO, Type.getDescriptor(boolean.class));
                         methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, implementationContext.getInstrumentedType().getInternalName(), FOO, Type.getDescriptor(boolean.class));
@@ -1677,7 +1793,7 @@ public class AdviceTest {
         assertThat(sample.getField(FOO).get(sample.getConstructor().newInstance()), is((Object) FOO));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testUserSerializableTypeValueNonAssignable() throws Exception {
         new ByteBuddy()
                 .redefine(Sample.class)
@@ -1685,7 +1801,7 @@ public class AdviceTest {
                 .make();
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testIllegalUserValue() throws Exception {
         new ByteBuddy()
                 .redefine(Sample.class)
@@ -1717,7 +1833,7 @@ public class AdviceTest {
                 .make();
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testNonAssignableSerializableValue() throws Exception {
         new ByteBuddy()
                 .redefine(Sample.class)
@@ -1993,6 +2109,38 @@ public class AdviceTest {
     }
 
     @Test(expected = IllegalStateException.class)
+    public void testFieldHandleIllegalExplicit() throws Exception {
+        new ByteBuddy()
+                .redefine(FieldSample.class)
+                .visit(Advice.to(FieldAdviceHandleIllegalExplicit.class).on(named(FOO)))
+                .make();
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testFieldHandleNonExistent() throws Exception {
+        new ByteBuddy()
+                .redefine(FieldSample.class)
+                .visit(Advice.to(FieldAdviceHandleNonExistent.class).on(named(FOO)))
+                .make();
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testFieldHandleGetterNonAssignable() throws Exception {
+        new ByteBuddy()
+                .redefine(FieldSample.class)
+                .visit(Advice.to(FieldAdviceGetterHandleNonAssignable.class).on(named(FOO)))
+                .make();
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testFieldHandleSetterNonAssignable() throws Exception {
+        new ByteBuddy()
+                .redefine(FieldSample.class)
+                .visit(Advice.to(FieldAdviceSetterHandleNonAssignable.class).on(named(FOO)))
+                .make();
+    }
+
+    @Test(expected = IllegalStateException.class)
     public void testIllegalOriginType() throws Exception {
         Advice.to(IllegalOriginType.class);
     }
@@ -2143,6 +2291,19 @@ public class AdviceTest {
                 .redefine(Sample.class)
                 .visit(Advice.to(NoArgumentsCannotWrite.class).on(named(FOO)))
                 .make();
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testSelfCallHandleNoConstructor() throws Exception {
+        new ByteBuddy()
+                .redefine(SelfCallHandleSample.class)
+                .visit(Advice.to(SelfCallHandleSample.class).on(isConstructor()))
+                .make();
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testSelfCallHandleNotAssignable() throws Exception {
+        Advice.to(SelfCallHandleIllegalSample.class);
     }
 
     @SuppressWarnings("unused")
@@ -2937,6 +3098,77 @@ public class AdviceTest {
     }
 
     @SuppressWarnings("unused")
+    public static class FieldAdviceHandleBean {
+
+        @Advice.OnMethodExit
+        private static void enter(@Advice.FieldGetterHandle Object handle, @Advice.Origin("#p") String propertyName) throws Throwable {
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            Bean.enter++;
+            if (!method.invoke(handle, Collections.emptyList()).equals(BAR)) {
+                throw new AssertionError();
+            }
+            if (!propertyName.equals(FOO)) {
+                throw new AssertionError();
+            }
+        }
+    }
+
+    @SuppressWarnings("unused")
+    public static class FieldAdviceHandleSetterBean {
+
+        @Advice.OnMethodEnter
+        private static void enter(@Advice.FieldSetterHandle Object setter) throws Throwable {
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            Bean.enter++;
+            method.invoke(setter, Collections.singletonList(QUX));
+        }
+    }
+
+    @SuppressWarnings("unused")
+    public static class FieldAdviceHandleImplicit {
+
+        @Advice.OnMethodEnter
+        private static void enter(@Advice.FieldGetterHandle("foo") Object handle) throws Throwable{
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            FieldSample.enter++;
+            if (!method.invoke(handle, Collections.emptyList()).equals(FOO)) {
+                throw new AssertionError();
+            }
+        }
+
+        @Advice.OnMethodExit
+        private static void exit(@Advice.FieldGetterHandle("foo") Object handle) throws Throwable {
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            FieldSample.exit++;
+            if (!method.invoke(handle, Collections.emptyList()).equals(FOO)) {
+                throw new AssertionError();
+            }
+        }
+    }
+
+    @SuppressWarnings("unused")
+    public static class FieldAdviceHandleExplicit {
+
+        @Advice.OnMethodEnter
+        private static void enter(@Advice.FieldGetterHandle(value = "foo", declaringType = FieldSample.class) Object handle) throws Throwable {
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            FieldSample.enter++;
+            if (!method.invoke(handle, Collections.emptyList()).equals(FOO)) {
+                throw new AssertionError();
+            }
+        }
+
+        @Advice.OnMethodExit
+        private static void exit(@Advice.FieldGetterHandle(value = "foo", declaringType = FieldSample.class) Object handle) throws Throwable {
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            FieldSample.exit++;
+            if (!method.invoke(handle, Collections.emptyList()).equals(FOO)) {
+                throw new AssertionError();
+            }
+        }
+    }
+
+    @SuppressWarnings("unused")
     public static class OriginAdvice {
 
         @Advice.OnMethodEnter
@@ -3221,6 +3453,104 @@ public class AdviceTest {
         }
     }
 
+    public static class SelfCallHandleSample {
+
+        protected static boolean checked;
+
+        public static String foo;
+
+        public String foo(String value) {
+            return value;
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.SelfCallHandle Object bound, @Advice.SelfCallHandle(bound = false) Object unbound) throws Throwable {
+            if (checked) {
+                return;
+            } else {
+                checked = true;
+            }
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            foo = method.invoke(bound, Collections.emptyList()).toString() + method.invoke(unbound, Arrays.asList(new SelfCallHandleSample(), BAR));
+        }
+    }
+
+    public static class SelfCallHandleSubclass extends SelfCallHandleSample {
+
+        private int check;
+
+        @Override
+        public String foo(String value) {
+            if (check++ != 0) {
+                throw new AssertionError();
+            }
+            return super.foo(value);
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.SelfCallHandle Object bound, @Advice.SelfCallHandle(bound = false) Object unbound) throws Throwable {
+            if (SelfCallHandleSample.checked) {
+                return;
+            } else {
+                SelfCallHandleSample.checked = true;
+            }
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            foo = method.invoke(bound, Collections.emptyList()).toString() + method.invoke(unbound, Arrays.asList(new SelfCallHandleSubclass(), BAR));
+        }
+    }
+
+    public static class SelfCallHandleStaticSample {
+
+        private static boolean checked;
+
+        public static String foo;
+
+        public static String foo(String value) {
+            return value;
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.SelfCallHandle Object bound, @Advice.SelfCallHandle(bound = false) Object unbound) throws Throwable {
+            if (checked) {
+                return;
+            } else {
+                checked = true;
+            }
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            foo = method.invoke(bound, Collections.emptyList()).toString() + method.invoke(unbound, Collections.singletonList(BAR));
+        }
+    }
+
+    public static class SelfCallHandlePrimitiveSample {
+
+        private static boolean checked;
+
+        public static int foo;
+
+        public int foo(int value) {
+            return value;
+        }
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.SelfCallHandle Object bound, @Advice.SelfCallHandle(bound = false) Object unbound) throws Throwable {
+            if (checked) {
+                return;
+            } else {
+                checked = true;
+            }
+            Method method = Class.forName("java.lang.invoke.MethodHandle").getMethod("invokeWithArguments", List.class);
+            foo = (Integer) method.invoke(bound, Collections.emptyList()) + (Integer) method.invoke(unbound, Arrays.asList(new SelfCallHandlePrimitiveSample(), 84));
+        }
+    }
+
+    public static class SelfCallHandleIllegalSample {
+
+        @Advice.OnMethodExit
+        public static void exit(@Advice.SelfCallHandle String value) {
+            throw new AssertionError();
+        }
+    }
+
     @SuppressWarnings("unused")
     public static class FieldAdviceIllegalExplicit {
 
@@ -3254,6 +3584,42 @@ public class AdviceTest {
         @Advice.OnMethodEnter
         private static void enter(@Advice.FieldValue("foo") String foo) {
             foo = BAR;
+        }
+    }
+
+    @SuppressWarnings("unused")
+    public static class FieldAdviceHandleIllegalExplicit {
+
+        @Advice.OnMethodEnter
+        private static void enter(@Advice.FieldGetterHandle(value = "bar", declaringType = Void.class) String bar) {
+            throw new AssertionError();
+        }
+    }
+
+    @SuppressWarnings("unused")
+    public static class FieldAdviceHandleNonExistent {
+
+        @Advice.OnMethodEnter
+        private static void enter(@Advice.FieldGetterHandle("bar") String bar) {
+            throw new AssertionError();
+        }
+    }
+
+    @SuppressWarnings("unused")
+    public static class FieldAdviceGetterHandleNonAssignable {
+
+        @Advice.OnMethodEnter
+        private static void enter(@Advice.FieldGetterHandle("foo") Void foo) {
+            throw new AssertionError();
+        }
+    }
+
+    @SuppressWarnings("unused")
+    public static class FieldAdviceSetterHandleNonAssignable {
+
+        @Advice.OnMethodEnter
+        private static void enter(@Advice.FieldSetterHandle("foo") Void foo) {
+            throw new AssertionError();
         }
     }
 
@@ -3664,6 +4030,16 @@ public class AdviceTest {
         @Advice.OnMethodEnter
         private static void enter(@Advice.AllArguments(nullIfEmpty = true) Object[] value) {
             value = new Object[0];
+        }
+    }
+
+    public static class AllArgumentsIncludeSelf {
+
+        @Advice.OnMethodEnter
+        private static void enter(@Advice.AllArguments(includeSelf = true) Object[] value) {
+            if (value.length != 1 || !(value[0] instanceof Sample)) {
+                throw new AssertionError();
+            }
         }
     }
 

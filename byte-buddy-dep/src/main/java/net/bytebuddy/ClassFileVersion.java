@@ -21,6 +21,7 @@ import net.bytebuddy.build.HashCodeAndEqualsPlugin;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.utility.OpenedClassReader;
+import net.bytebuddy.utility.nullability.MaybeNull;
 import org.objectweb.asm.Opcodes;
 
 import java.io.IOException;
@@ -32,7 +33,6 @@ import java.security.PrivilegedAction;
  * A wrapper object for representing a validated class file version in the format that is specified by the
  * <a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html">JVMS</a>.
  */
-@HashCodeAndEqualsPlugin.Enhance
 public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializable {
 
     /**
@@ -146,6 +146,11 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
     public static final ClassFileVersion JAVA_V20 = new ClassFileVersion(Opcodes.V20);
 
     /**
+     * The class file version of Java 21.
+     */
+    public static final ClassFileVersion JAVA_V21 = new ClassFileVersion(Opcodes.V21);
+
+    /**
      * A version locator for the executing JVM.
      */
     private static final VersionLocator VERSION_LOCATOR = doPrivileged(VersionLocator.Resolver.INSTANCE);
@@ -237,6 +242,8 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
             return JAVA_V19;
         } else if (javaVersionString.equals("1.20") || javaVersionString.equals("20")) {
             return JAVA_V20;
+        } else if (javaVersionString.equals("1.21") || javaVersionString.equals("21")) {
+            return JAVA_V21;
         } else {
             if (OpenedClassReader.EXPERIMENTAL) {
                 try {
@@ -302,6 +309,8 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
                 return JAVA_V19;
             case 20:
                 return JAVA_V20;
+            case 21:
+                return JAVA_V21;
             default:
                 if (OpenedClassReader.EXPERIMENTAL && javaVersion > 0) {
                     return new ClassFileVersion(BASE_VERSION + javaVersion);
@@ -317,7 +326,7 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
      * @return The latest officially supported Java version.
      */
     public static ClassFileVersion latest() {
-        return ClassFileVersion.JAVA_V20;
+        return ClassFileVersion.JAVA_V21;
     }
 
     /**
@@ -497,6 +506,21 @@ public class ClassFileVersion implements Comparable<ClassFileVersion>, Serializa
         return Integer.signum(getMajorVersion() == other.getMajorVersion()
                 ? getMinorVersion() - other.getMinorVersion()
                 : getMajorVersion() - other.getMajorVersion());
+    }
+
+    @Override
+    public int hashCode() {
+        return versionNumber;
+    }
+
+    @Override
+    public boolean equals(@MaybeNull Object other) {
+        if (this == other) {
+            return true;
+        } else if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+        return versionNumber == ((ClassFileVersion) other).versionNumber;
     }
 
     @Override

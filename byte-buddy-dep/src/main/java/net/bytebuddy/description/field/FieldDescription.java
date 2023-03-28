@@ -20,7 +20,6 @@ import net.bytebuddy.build.CachedReturnPlugin;
 import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.DeclaredByType;
 import net.bytebuddy.description.ModifierReviewable;
-import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.type.TypeDescription;
@@ -42,9 +41,9 @@ import java.util.List;
  * {@code equal(Object)} and {@code hashCode()} implementations.
  */
 public interface FieldDescription extends ByteCodeElement,
-        DeclaredByType.WithMandatoryDeclaration,
         ModifierReviewable.ForFieldDescription,
-        NamedElement.WithGenericName,
+        DeclaredByType.WithMandatoryDeclaration,
+        ByteCodeElement.Member,
         ByteCodeElement.TypeDependant<FieldDescription.InDefinedShape, FieldDescription.Token> {
 
     /**

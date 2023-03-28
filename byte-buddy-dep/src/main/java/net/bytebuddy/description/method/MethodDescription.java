@@ -18,7 +18,10 @@ package net.bytebuddy.description.method;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.build.AccessControllerPlugin;
 import net.bytebuddy.build.CachedReturnPlugin;
-import net.bytebuddy.description.*;
+import net.bytebuddy.description.ByteCodeElement;
+import net.bytebuddy.description.DeclaredByType;
+import net.bytebuddy.description.ModifierReviewable;
+import net.bytebuddy.description.TypeVariableSource;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.annotation.AnnotationValue;
@@ -53,10 +56,9 @@ import static net.bytebuddy.matcher.ElementMatchers.ofSort;
  * interface must provide meaningful {@code equal(Object)} and {@code hashCode()} implementations.
  */
 public interface MethodDescription extends TypeVariableSource,
-        DeclaredByType.WithMandatoryDeclaration,
         ModifierReviewable.ForMethodDescription,
-        NamedElement.WithGenericName,
-        ByteCodeElement,
+        DeclaredByType.WithMandatoryDeclaration,
+        ByteCodeElement.Member,
         ByteCodeElement.TypeDependant<MethodDescription.InDefinedShape, MethodDescription.Token> {
 
     /**
@@ -250,7 +252,7 @@ public interface MethodDescription extends TypeVariableSource,
     boolean isConstantBootstrap();
 
     /**
-     * Checks if this method is a valid bootstrap method for an constantdynamic call.
+     * Checks if this method is a valid bootstrap method for a constantdynamic call.
      *
      * @param arguments The types of the explicit arguments that are supplied to the bootstrap method.
      * @return {@code true} if this method is a valid bootstrap method for an <i>constantdynamic</i> call.

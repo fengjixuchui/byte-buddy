@@ -682,9 +682,8 @@ public class MemberSubstitutionTest {
     public void testSubstitutionChainSimple() throws Exception {
         Class<?> type = new ByteBuddy()
                 .redefine(FieldAccessSample.class)
-                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(new MemberSubstitution.Substitution.Chain.Step.Simple(
-                        NullConstant.INSTANCE,
-                        TypeDescription.Generic.Sort.describe(String.class))).on(named(RUN)))
+                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
+                        new MemberSubstitution.Substitution.Chain.Step.Simple(NullConstant.INSTANCE, String.class)).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -700,7 +699,8 @@ public class MemberSubstitutionTest {
     public void testSubstitutionChainFieldReadOriginal() throws Exception {
         Class<?> type = new ByteBuddy()
                 .redefine(FieldAccessSample.class)
-                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
+                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
+                        MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -716,7 +716,8 @@ public class MemberSubstitutionTest {
     public void testSubstitutionChainFieldWriteOriginal() throws Exception {
         Class<?> type = new ByteBuddy()
                 .redefine(FieldAccessSample.class)
-                .visit(MemberSubstitution.strict().field(named(BAR)).replaceWithChain(MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
+                .visit(MemberSubstitution.strict().field(named(BAR)).replaceWithChain(
+                        MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -732,7 +733,8 @@ public class MemberSubstitutionTest {
     public void testSubstitutionChainFieldReadStaticOriginal() throws Exception {
         Class<?> type = new ByteBuddy()
                 .redefine(StaticFieldAccessSample.class)
-                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
+                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
+                        MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -748,7 +750,8 @@ public class MemberSubstitutionTest {
     public void testSubstitutionChainFieldWriteStaticOriginal() throws Exception {
         Class<?> type = new ByteBuddy()
                 .redefine(StaticFieldAccessSample.class)
-                .visit(MemberSubstitution.strict().field(named(BAR)).replaceWithChain(MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
+                .visit(MemberSubstitution.strict().field(named(BAR)).replaceWithChain(
+                        MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -761,10 +764,11 @@ public class MemberSubstitutionTest {
     }
 
     @Test
-    public void testSubstitutionChainMethodInvocationOriginal() throws Exception {
+    public void testSubstitutionChainVirtualMethodInvocationOriginal() throws Exception {
         Class<?> type = new ByteBuddy()
                 .redefine(MethodInvokeSample.class)
-                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
+                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
+                        MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -774,6 +778,50 @@ public class MemberSubstitutionTest {
         assertThat(type.getDeclaredMethod(RUN).invoke(instance), nullValue(Object.class));
         assertThat(type.getDeclaredField(FOO).get(instance), is((Object) FOO));
         assertThat(type.getDeclaredField(BAR).get(instance), is((Object) FOO));
+    }
+
+    @Test
+    public void testSubstitutionChainStaticMethodInvocationOriginal() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(StaticMethodInvokeSample.class)
+                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
+                        MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        Object instance = type.getDeclaredConstructor().newInstance();
+        assertThat(type.getDeclaredField(FOO).get(null), is((Object) FOO));
+        assertThat(type.getDeclaredField(BAR).get(null), is((Object) BAR));
+        assertThat(type.getDeclaredMethod(RUN).invoke(instance), nullValue(Object.class));
+        assertThat(type.getDeclaredField(FOO).get(null), is((Object) FOO));
+        assertThat(type.getDeclaredField(BAR).get(null), is((Object) FOO));
+    }
+
+    @Test
+    public void testSubstitutionChainSpecialMethodInvocationOriginal() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(VirtualMethodCallSubstitutionSample.Extension.class)
+                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
+                        MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
+                .make()
+                .load(new ByteArrayClassLoader(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassFileLocator.ForClassLoader.readToNames(VirtualMethodCallSubstitutionSample.class)),
+                        ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        Object instance = type.getDeclaredConstructor().newInstance();
+        assertThat(type.getDeclaredMethod(RUN).invoke(instance), is((Object) 3));
+    }
+
+    @Test
+    public void testSubstitutionChainConstructionOriginal() throws Exception {
+        Class<?> type = new ByteBuddy()
+                .redefine(ConstructorSubstitutionSample.class)
+                .visit(MemberSubstitution.strict().constructor(isDeclaredBy(Object.class)).replaceWithChain(
+                        MemberSubstitution.Substitution.Chain.Step.OfOriginalExpression.INSTANCE).on(named(RUN)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        Object instance = type.getDeclaredConstructor().newInstance();
+        assertThat(type.getDeclaredMethod(RUN).invoke(instance), instanceOf(Object.class));
     }
 
     @Test
@@ -781,8 +829,8 @@ public class MemberSubstitutionTest {
         Class<?> type = new ByteBuddy()
                 .redefine(FieldAccessSample.class)
                 .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
-                        new MemberSubstitution.Substitution.Chain.Step.ForArgumentLoading.Factory(0),
-                        new MemberSubstitution.Substitution.Chain.Step.ForField.Read.Factory(new FieldDescription.ForLoadedField(FieldAccessSample.class.getDeclaredField("qux")))).on(named(RUN)))
+                        new MemberSubstitution.Substitution.Chain.Step.ForArgumentLoading(0),
+                        new MemberSubstitution.Substitution.Chain.Step.ForField.Read.Factory(FieldAccessSample.class.getDeclaredField("qux"))).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -799,7 +847,7 @@ public class MemberSubstitutionTest {
         Class<?> type = new ByteBuddy()
                 .redefine(StaticFieldAccessSample.class)
                 .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
-                        new MemberSubstitution.Substitution.Chain.Step.ForField.Read.Factory(new FieldDescription.ForLoadedField(StaticFieldAccessSample.class.getDeclaredField("qux")))).on(named(RUN)))
+                        new MemberSubstitution.Substitution.Chain.Step.ForField.Read.Factory(StaticFieldAccessSample.class.getDeclaredField("qux"))).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -816,8 +864,8 @@ public class MemberSubstitutionTest {
         Class<?> type = new ByteBuddy()
                 .redefine(FieldAccessSample.class)
                 .visit(MemberSubstitution.strict().field(named(BAR)).replaceWithChain(
-                        new MemberSubstitution.Substitution.Chain.Step.ForArgumentLoading.Factory(0),
-                        new MemberSubstitution.Substitution.Chain.Step.ForField.Write.Factory(new FieldDescription.ForLoadedField(FieldAccessSample.class.getDeclaredField("baz")), 0)).on(named(RUN)))
+                        new MemberSubstitution.Substitution.Chain.Step.ForArgumentLoading(0),
+                        new MemberSubstitution.Substitution.Chain.Step.ForField.Write.Factory(FieldAccessSample.class.getDeclaredField("baz"), 0)).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -834,8 +882,8 @@ public class MemberSubstitutionTest {
         Class<?> type = new ByteBuddy()
                 .redefine(StaticFieldAccessSample.class)
                 .visit(MemberSubstitution.strict().field(named(BAR)).replaceWithChain(
-                        new MemberSubstitution.Substitution.Chain.Step.ForArgumentLoading.Factory(0),
-                        new MemberSubstitution.Substitution.Chain.Step.ForField.Write.Factory(new FieldDescription.ForLoadedField(StaticFieldAccessSample.class.getDeclaredField("baz")), 0)).on(named(RUN)))
+                        new MemberSubstitution.Substitution.Chain.Step.ForArgumentLoading(0),
+                        new MemberSubstitution.Substitution.Chain.Step.ForField.Write.Factory(StaticFieldAccessSample.class.getDeclaredField("baz"), 0)).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -852,8 +900,8 @@ public class MemberSubstitutionTest {
         Class<?> type = new ByteBuddy()
                 .redefine(FieldAccessSample.class)
                 .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
-                        new MemberSubstitution.Substitution.Chain.Step.ForArgumentLoading.Factory(0),
-                        new MemberSubstitution.Substitution.Chain.Step.ForInvocation.Factory(new MethodDescription.ForLoadedMethod(FieldAccessSample.class.getDeclaredMethod("baz")))).on(named(RUN)))
+                        new MemberSubstitution.Substitution.Chain.Step.ForArgumentLoading(0),
+                        new MemberSubstitution.Substitution.Chain.Step.ForInvocation.Factory(FieldAccessSample.class.getDeclaredMethod("baz"))).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -870,7 +918,43 @@ public class MemberSubstitutionTest {
         Class<?> type = new ByteBuddy()
                 .redefine(StaticFieldAccessSample.class)
                 .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
-                        new MemberSubstitution.Substitution.Chain.Step.ForInvocation.Factory(new MethodDescription.ForLoadedMethod(StaticFieldAccessSample.class.getDeclaredMethod("baz")))).on(named(RUN)))
+                        new MemberSubstitution.Substitution.Chain.Step.ForInvocation.Factory(StaticFieldAccessSample.class.getDeclaredMethod("baz"))).on(named(RUN)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        Object instance = type.getDeclaredConstructor().newInstance();
+        assertThat(type.getDeclaredField(FOO).get(instance), is((Object) FOO));
+        assertThat(type.getDeclaredField(BAR).get(instance), is((Object) BAR));
+        assertThat(type.getDeclaredMethod(RUN).invoke(instance), nullValue(Object.class));
+        assertThat(type.getDeclaredField(FOO).get(instance), is((Object) FOO));
+        assertThat(type.getDeclaredField(BAR).get(instance), is((Object) BAZ));
+    }
+
+    @Test
+    public void testSubstitutionChainTypeAssignment() throws Exception{
+        Class<?> type = new ByteBuddy()
+                .redefine(StaticFieldAccessSample.class)
+                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
+                        new MemberSubstitution.Substitution.Chain.Step.ForInvocation.Factory(StaticFieldAccessSample.class.getDeclaredMethod("foobar")),
+                        MemberSubstitution.Substitution.Chain.Step.ForAssignment.castToSubstitutionResult()).on(named(RUN)))
+                .make()
+                .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
+                .getLoaded();
+        Object instance = type.getDeclaredConstructor().newInstance();
+        assertThat(type.getDeclaredField(FOO).get(instance), is((Object) FOO));
+        assertThat(type.getDeclaredField(BAR).get(instance), is((Object) BAR));
+        assertThat(type.getDeclaredMethod(RUN).invoke(instance), nullValue(Object.class));
+        assertThat(type.getDeclaredField(FOO).get(instance), is((Object) FOO));
+        assertThat(type.getDeclaredField(BAR).get(instance), is((Object) BAZ));
+    }
+
+    @Test
+    public void testSubstitutionChainTypeAssignmentExplicit() throws Exception{
+        Class<?> type = new ByteBuddy()
+                .redefine(StaticFieldAccessSample.class)
+                .visit(MemberSubstitution.strict().field(named(FOO)).replaceWithChain(
+                        new MemberSubstitution.Substitution.Chain.Step.ForInvocation.Factory(StaticFieldAccessSample.class.getDeclaredMethod("foobar")),
+                        MemberSubstitution.Substitution.Chain.Step.ForAssignment.castTo(String.class)).on(named(RUN)))
                 .make()
                 .load(ClassLoadingStrategy.BOOTSTRAP_LOADER, ClassLoadingStrategy.Default.WRAPPER)
                 .getLoaded();
@@ -1121,6 +1205,10 @@ public class MemberSubstitutionTest {
         @SuppressWarnings("unused")
         private static void baz(String baz) {
             StaticFieldAccessSample.baz = baz;
+        }
+
+        private static Object foobar() {
+            return BAZ;
         }
     }
 

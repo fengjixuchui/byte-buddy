@@ -59,6 +59,18 @@ public class MethodDelegationSuperCallTest {
     }
 
     @Test
+    public void testWithArgument() throws Exception {
+        DynamicType.Loaded<Baz> loaded = new ByteBuddy()
+                .subclass(Baz.class)
+                .method(isDeclaredBy(Baz.class))
+                .intercept(MethodDelegation.to(CallableClass.class))
+                .make()
+                .load(Baz.class.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER);
+        Baz instance = loaded.getLoaded().getDeclaredConstructor().newInstance();
+        assertThat(instance.foo(FOO), is((Object) FOO));
+    }
+
+    @Test
     public void testVoidToNonVoidSuperCall() throws Exception {
         DynamicType.Loaded<VoidTest> loaded = new ByteBuddy()
                 .subclass(VoidTest.class)
@@ -188,6 +200,13 @@ public class MethodDelegationSuperCallTest {
 
         public void foo() {
             register(FOO);
+        }
+    }
+
+    public static class Baz {
+
+        public Object foo(Object value) {
+            return value;
         }
     }
 
